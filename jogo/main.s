@@ -4,6 +4,7 @@ CHAR_POS:	.half 32,32
 OLD_CHAR_POS: 	.half 32,32
 
 .text
+.global CONFIRM_LEFT, CONFIRM_RIGHT, CONFIRM_UP, CONFIRM_DOWN
 
 # a0 -> endereco da imagem
 # a1 -> x da imagem
@@ -92,9 +93,9 @@ CHAR_LEFT:
 	la t1, OLD_CHAR_POS
 	lh t2, 0(t0)
 	
-	li t3, 20
-	addi t4, t2, -16
-	bge t4, t3, CONFIRM_LEFT
+	mv t6, ra
+	jal CHECK_LEFT
+	mv ra, t6
 	ret
 	
 CONFIRM_LEFT:
@@ -113,9 +114,9 @@ CHAR_RIGHT:
 	la t1, OLD_CHAR_POS
 	lh t2, 0(t0)
 	
-	li t3, 280
-	addi t4, t2, 16
-	ble t4, t3, CONFIRM_RIGHT
+	mv t6, ra
+	jal CHECK_RIGHT
+	mv ra, t6
 	ret
 	
 CONFIRM_RIGHT:
@@ -127,6 +128,7 @@ CONFIRM_RIGHT:
 	addi t1, t1, 16
 	sh t1, 0(t0)
 	ret
+
 	
 CHAR_UP:
 
@@ -134,9 +136,9 @@ CHAR_UP:
 	la t1, OLD_CHAR_POS
 	lh t2, 2(t0)
 	
-	li t3, 20
-	addi t4, t2, -16
-	bge t4, t3, CONFIRM_UP
+	mv t6, ra
+	jal CHECK_UP
+	mv ra, t6
 	ret
 	
 CONFIRM_UP:
@@ -155,9 +157,9 @@ CHAR_DOWN:
 	la t1, OLD_CHAR_POS
 	lh t2, 2(t0)
 	
-	li t3, 200
-	addi t4, t2, 16
-	ble t4, t3, CONFIRM_DOWN
+	mv t6, ra
+	jal CHECK_DOWN
+	mv ra, t6
 	ret
 	
 CONFIRM_DOWN:
@@ -216,7 +218,7 @@ PRINT_LINHA: #loop que printa tinha por linha até o fim da imagem
 .include "sprites/mapa_beta.data"
 .include "sprites/char.s"
 .include "sprites/tile.data"
+.include "hitbox.s"
 	
 	
 	
-
