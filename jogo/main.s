@@ -1,7 +1,7 @@
 .data
 
-CHAR_POS:	.half 32,32
-OLD_CHAR_POS: 	.half 32,32
+CHAR_POS:	.half 128,32
+OLD_CHAR_POS: 	.half 128,32
 
 .text
 .global CONFIRM_LEFT, CONFIRM_RIGHT, CONFIRM_UP, CONFIRM_DOWN
@@ -90,8 +90,6 @@ FIM:
 CHAR_LEFT:
 
 	la t0, CHAR_POS
-	la t1, OLD_CHAR_POS
-	lh t2, 0(t0)
 	
 	mv t6, ra
 	jal CHECK_LEFT
@@ -100,6 +98,7 @@ CHAR_LEFT:
 	
 CONFIRM_LEFT:
 	
+	la t1, OLD_CHAR_POS
 	lw t2, 0(t0)
 	sw t2, 0(t1)
 	
@@ -111,8 +110,6 @@ CONFIRM_LEFT:
 CHAR_RIGHT:
 
 	la t0, CHAR_POS
-	la t1, OLD_CHAR_POS
-	lh t2, 0(t0)
 	
 	mv t6, ra
 	jal CHECK_RIGHT
@@ -120,7 +117,9 @@ CHAR_RIGHT:
 	ret
 	
 CONFIRM_RIGHT:
+
 	
+	la t1, OLD_CHAR_POS
 	lw t2, 0(t0)
 	sw t2, 0(t1)
 	
@@ -133,9 +132,7 @@ CONFIRM_RIGHT:
 CHAR_UP:
 
 	la t0, CHAR_POS
-	la t1, OLD_CHAR_POS
-	lh t2, 2(t0)
-	
+
 	mv t6, ra
 	jal CHECK_UP
 	mv ra, t6
@@ -143,6 +140,7 @@ CHAR_UP:
 	
 CONFIRM_UP:
 	
+	la t1, OLD_CHAR_POS
 	lw t2, 0(t0)
 	sw t2, 0(t1)
 	
@@ -154,8 +152,6 @@ CONFIRM_UP:
 CHAR_DOWN:
 
 	la t0, CHAR_POS
-	la t1, OLD_CHAR_POS
-	lh t2, 2(t0)
 	
 	mv t6, ra
 	jal CHECK_DOWN
@@ -164,6 +160,7 @@ CHAR_DOWN:
 	
 CONFIRM_DOWN:
 
+	la t1, OLD_CHAR_POS
 	lw t2, 0(t0)
 	sw t2, 0(t1)
 	
@@ -219,6 +216,7 @@ PRINT_LINHA: #loop que printa tinha por linha até o fim da imagem
 .include "sprites/char.s"
 .include "sprites/tile.data"
 .include "hitbox.s"
+.include "sprites/mapa_beta_tiled.data"
 	
 	
 	
