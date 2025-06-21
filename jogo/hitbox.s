@@ -1,55 +1,96 @@
-.data
-# Limites de mapa
-LEFT_WALL: 	.word 20
-RIGHT_WALL:	.word 280
-TOP_WALL:	.word 20
-BOTTOM_WALL:	.word 200
-
-# Blocos indestrutíveis internos
-
-BLOCOS:		.word 64, 64, 144, 64, 224, 64, 64, 144, 144, 144, 224, 144	
+##############
+# 0 - paredes
+# 1 - chao
 
 .text
 .globl CHECK_LEFT, CHECK_RIGHT, CHECK_DOWN, CHECK_UP
 
-CHECK_LEFT:
 
-	la t3, LEFT_WALL
-	lw t4, 0(t3)
-	addi t5, t2, -16
-	mv t3, ra
-	bge t4, t5, NO_MOVE
-	j CONFIRM_LEFT
+CHECK_LEFT:
 	
+	la a0, mapa_beta_tiled
+	lh t1, 0(t0)
+	lh t2, 2(t0)
+	li t3, 16
+	li t4, 20
+	
+	div t1, t1, t3
+	div t2, t2, t3
+	
+	mul t2, t2, t4
+	add t1, t1, t2
+	
+	addi a0, a0, 7
+	add a0, a0, t1
+	
+	lb t1, 0(a0)
+	beq t1, zero, NO_MOVE
+	j CONFIRM_LEFT
+
 CHECK_RIGHT:
 
-	la t3, RIGHT_WALL
-	lw t4, 0(t3)
-	addi t5, t2, 16
-	mv t3, ra
-	bge t5, t4, NO_MOVE
+	la a0, mapa_beta_tiled
+	lh t1, 0(t0)
+	lh t2, 2(t0)
+	li t3, 16
+	li t4, 20
+	
+	div t1, t1, t3
+	div t2, t2, t3
+	
+	mul t2, t2, t4
+	add t1, t1, t2
+	
+	addi a0, a0, 9
+	add a0, a0, t1
+	
+	lb t1, 0(a0)
+	beq t1, zero, NO_MOVE
 	j CONFIRM_RIGHT
 	
 CHECK_UP:
 
-	la t3, TOP_WALL
-	lw t4, 0(t3)
-	addi t5, t2, -16
-	mv t3, ra
-	bge t4, t5, NO_MOVE
+	la a0, mapa_beta_tiled
+	lh t1, 0(t0)
+	lh t2, 2(t0)
+	li t3, 16
+	li t4, 20
+	
+	div t1, t1, t3
+	div t2, t2, t3
+	
+	mul t2, t2, t4
+	add t1, t1, t2
+	
+	add a0, a0, t1
+	addi a0, a0, -20
+	
+	lb t1, 0(a0)
+	beq t1, zero, NO_MOVE
 	j CONFIRM_UP
 	
 CHECK_DOWN:
 
-	la t3, BOTTOM_WALL
-	lw t4, 0(t3)
-	addi t5, t2, 16
-	mv t3, ra
-	bge t5, t4, NO_MOVE
+	la a0, mapa_beta_tiled
+	lh t1, 0(t0)
+	lh t2, 2(t0)
+	li t3, 16
+	li t4, 20
+	
+	div t1, t1, t3
+	div t2, t2, t3
+	
+	mul t2, t2, t4
+	add t1, t1, t2
+	
+	addi a0, a0, 20
+	add a0, a0, t1
+	
+	lb t1, 0(a0)
+	beq t1, zero, NO_MOVE
 	j CONFIRM_DOWN
 	
 NO_MOVE:
-	mv ra, t3
 	ret
 	
 	
