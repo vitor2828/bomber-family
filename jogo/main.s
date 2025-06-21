@@ -1,7 +1,7 @@
 .data
 
-CHAR_POS:	.half 128,32
-OLD_CHAR_POS: 	.half 128,32
+CHAR_POS:	.half 16, 16
+OLD_CHAR_POS: 	.half 16, 16
 
 .text
 .global CONFIRM_LEFT, CONFIRM_RIGHT, CONFIRM_UP, CONFIRM_DOWN
