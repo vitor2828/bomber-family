@@ -1,10 +1,13 @@
 .data
 
-CHAR_POS:	.half 16, 16
-OLD_CHAR_POS: 	.half 16, 16
+CHAR_POS:	.half 16,16 # posicao do personagem
+OLD_CHAR_POS: 	.half 16,16 # redesenha os tiles para o personagem sumir
+BOMB_POS:	.half 320, 320 # posicao da bomba
+BOMB_TIMER:	.word 0 # timer para a explosao da bomba
 
 .text
 .global CONFIRM_LEFT, CONFIRM_RIGHT, CONFIRM_UP, CONFIRM_DOWN
+.global SET_LEVEL_1
 
 # a0 -> endereco da imagem
 # a1 -> x da imagem
@@ -22,10 +25,15 @@ OLD_CHAR_POS: 	.half 16, 16
 ## voltem ao padrão
 
 # s0 -> alterna entre os frames
-
+# s1 -> flag das bombas
+# s2 -> salva o ra para funções internas
 
 SET_LEVEL_1: # prepara o mapa da primeira fase (versao beta)
 
+	li s1, 0
+	la a0, BOMB_TIMER
+	sw zero, 0(a0)
+	
 	la a0, mapa_beta
 	li a1, 0
 	li a2, 0
@@ -39,6 +47,10 @@ GAME_LOOP_1: # game loop da primeira fase
 	call KEYPOLL
 	xori s0, s0, 1
 	
+	jal UPDATE_BOMB
+	xori a3, a3, 1
+	jal UPDATE_BOMB
+	
 	la t0, CHAR_POS
 	
 	la a0, char
@@ -47,6 +59,7 @@ GAME_LOOP_1: # game loop da primeira fase
 	li a3, 0
 	mv a3, s0
 	call PRINT
+	
 	
 	li t0, 0xFF200604
 	sw s0, 0(t0)
@@ -82,6 +95,9 @@ KEYPOLL: #espera o usuario apertar algum botao e realiza uma acao
 	
 	li t0, 'd'
 	beq t2, t0, CHAR_RIGHT
+	
+	li t0, 'j'
+	beq t2, t0, DROP_BOMB
 		
 FIM:
 
@@ -128,7 +144,6 @@ CONFIRM_RIGHT:
 	sh t1, 0(t0)
 	ret
 
-	
 CHAR_UP:
 
 	la t0, CHAR_POS
@@ -167,6 +182,73 @@ CONFIRM_DOWN:
 	lh t1, 2(t0)
 	addi t1, t1, 16
 	sh t1, 2(t0)
+	ret
+	
+DROP_BOMB:
+
+	li t0, 1 # 1 = ja existe bomba
+	beq s1, t0, DROP_BOMB_EXIT # se uma bomba ja estiver colocada, nao dropa a bomba
+	
+	li s1, 1 # fala que uma bomba existe
+	
+	la t0, CHAR_POS # pega o x e y do char 
+	lh a1, 0(t0)
+	lh a2, 2(t0)
+	
+	la t1, BOMB_POS # passa o x e y para a bomba
+	sh a1, 0(t1)
+	sh a2, 2(t1)
+	
+	la t0, BOMB_TIMER
+	li t1, 1000 # 120 é a quantidade de frames para a bomba explodir
+	sw t1, 0(t0) # guarda o inicio do timer da bomba
+	
+	la a0, bomba # printa a bomba
+	li a3, 0
+	mv s2, ra
+	call PRINT
+	mv ra, s2
+	
+DROP_BOMB_EXIT:
+	
+	ret
+	
+UPDATE_BOMB:
+
+	beq s1, zero, UPDATE_BOMB_EXIT # se nao existe bomba, nao precisa atualizar bomba
+	
+	la t0, BOMB_POS # pega a posicao da bomba
+	lh a1, 0(t0)
+	lh a2, 2(t0)
+	
+	la t0, BOMB_TIMER 
+	lw t3, 0(t0)
+	
+	addi t3, t3, -1 # a cada update_bomb, o timer desce 1
+	sw t3, 0(t0) # atualiza no .data
+	
+	beq t3, zero, EXPLODE_BOMB # se o timer chega a 0, a bomba explode
+	
+	la a0, bomba # printa a bomba de novo caso ela ainda exista
+	li a3, 0
+	mv s2, ra
+	call PRINT
+	mv ra, s2
+	
+	j UPDATE_BOMB_EXIT
+	
+EXPLODE_BOMB:
+
+	la a0, tile
+	li a3, 0
+	mv s2, ra
+	call PRINT
+	mv ra, s2
+	
+	li s1, 0
+	
+UPDATE_BOMB_EXIT:
+
 	ret
 	
 	
@@ -217,6 +299,7 @@ PRINT_LINHA: #loop que printa tinha por linha até o fim da imagem
 .include "sprites/tile.data"
 .include "hitbox.s"
 .include "sprites/mapa_beta_tiled.data"
+.include "sprites/bomba.data"
 	
 	
 	
