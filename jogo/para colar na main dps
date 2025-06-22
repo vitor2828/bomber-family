@@ -1,0 +1,60 @@
+.data
+
+TEMPO_INICIAL: .word 0
+TEMPO_ATUAL: .word 0
+
+NUM: .word 18
+# lista de nota,duração,nota,duração,nota,duração,...
+NOTAS: 77,368,71,368,72,368,65,184,67,920,60,368,62,184,67,2760,60,184,62,184,62,368,65,368,67,368,72,184,62,920,72,368,62,184,67,1656
+
+
+
+.text
+TEMPO: 	  li a7,30			# guarda o tempo atual
+	  ecall 
+	  
+	  la s2,TEMPO_ATUAL		# pega o endereço do tempo atual
+	  sw a0,0(s2)			# guarda o endereço em tempo atual
+	  
+	  la s1,TEMPO_INICIAL		# chama o endereço do tempo inicial
+	  
+	  lw t3,0(s1)		
+	  lw t4,0(s2)
+	  
+	  li t5,250			
+	  sub s3,t4,t3 			
+	  
+	  blt s3,t5,GAME_LOOP1		# se a diferença for menor que 750, volta pro loop ****
+            
+	  sw t4,0(s1)			# coloca o tempo atual em tempo inicial
+	  
+         j MUSICA
+
+
+MUSICA:
+
+	la t5,CONTADOR_NOTAS
+	lw t6,0(t5)			
+	li a2,32 	      # define o instrumento
+	li a3,80		# define o volume	
+	 
+	beq t6,s6,FIM_MUSICA_   # contador chegou no final? então  vá para FIM_MUSICA
+	lw a0,0(s5)		# le o valor da nota
+	lw a1,4(s5)		# le a duracao da nota
+	li a7,31		# define a chamada de syscall
+	ecall 			# toca a nota
+
+	addi s5,s5,8		# incrementa para o endereço da próxima nota
+	addi t6,t6,1		# incrementa o contador de notas
+	sw t6,0(t5)		# guarda o novo valor no contador_notas
+	
+	li t5,2
+	beq t5,s11,INIMIGO_2
+
+ SET_TEMPO: li a7,30
+	   ecall 
+	   la s1,TEMPO_INICIAL
+	   sw a0,0(s1)
+	
+	j INIMIGO			# volta ao loop
+
