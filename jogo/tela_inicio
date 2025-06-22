@@ -1,0 +1,47 @@
+.data
+.include
+
+.text
+INICIO:
+#inicializa os registradores 
+#t1 = endereço inicial do bitmap
+#t2 = endereço final do bitmap
+#s1 = endereço da imagem
+	li t1, 0xFF000000
+	li t2, 0xFF012C00
+	la s1,
+	addi s1, s1, 8
+LOOP_INICIO:
+	beq t1, t2, KEY1 #se t1 for igual ao endereço final vai checar o que o usuário digita
+	lw t3, 0(s1) # lê uma word da imagem
+	sw t3, 0(t1) # escreve essa word no bitmap
+	addi t1, t1, 4 #vai para a prox word do bitmap
+	addi s1, s1, 4 #vai para a prox word da imagem
+	j LOOP_INICIO
+
+#t0 = bit de controle
+#t1 = endereço do KDMMIO
+#t2 = tecla pressionada
+#t3 = char ref
+#verifica de o usuário quer começar o jogo ou sair
+KEY1:
+	li t1,0xFF200000 #carrega o endereço do KDMMIO
+LOOP_KEY_1:
+	lw t0,0(t1)# Le bit de Controle Teclado
+   	andi t0,t0,0x0001		# mascara o bit menos significativo
+   	beq t0,zero,LOOP_KEY_1		# não tem tecla pressionada então volta ao loop
+   	lw t2,4(t1)			# le o valor da tecla
+CHAR_SAIDA:
+	li t3, '1'# carrega o '1' para o t3
+	beq t2, t3, EXIT #compara 1 com a tecla pressionada
+CHAR_INICIO:
+	li t3, '0' #carrega o '0' par at3
+	beq t2, t3, SETUP
+	
+#qualquer outra tecla
+	j LOOP_KEY_1
+	 	
+
+EXIT:
+	li a7,10
+	ecall
