@@ -62,6 +62,8 @@ CHECK_UP:
 	mul t2, t2, t4
 	add t1, t1, t2
 	
+	
+	addi a0, a0, 8
 	add a0, a0, t1
 	addi a0, a0, -20
 	
@@ -83,6 +85,7 @@ CHECK_DOWN:
 	mul t2, t2, t4
 	add t1, t1, t2
 	
+	addi a0, a0, 8
 	addi a0, a0, 20
 	add a0, a0, t1
 	
