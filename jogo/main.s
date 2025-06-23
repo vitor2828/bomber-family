@@ -6,8 +6,6 @@ BOMB_POS:	.half 320, 320 # posicao da bomba
 BOMB_TIMER:	.word 0 # timer para a explosao da bomba
 
 .text
-.global CONFIRM_LEFT, CONFIRM_RIGHT, CONFIRM_UP, CONFIRM_DOWN
-.global SET_LEVEL_1
 
 # a0 -> endereco da imagem
 # a1 -> x da imagem
@@ -47,9 +45,7 @@ GAME_LOOP_1: # game loop da primeira fase
 	call KEYPOLL
 	xori s0, s0, 1
 	
-	jal UPDATE_BOMB
-	xori a3, a3, 1
-	jal UPDATE_BOMB
+	call UPDATE_BOMB
 	
 	la t0, CHAR_POS
 	
@@ -200,11 +196,10 @@ DROP_BOMB:
 	sh a2, 2(t1)
 	
 	la t0, BOMB_TIMER
-	li t1, 1000 # 120 é a quantidade de frames para a bomba explodir
+	li t1, 40000 # 120 é a quantidade de frames para a bomba explodir
 	sw t1, 0(t0) # guarda o inicio do timer da bomba
 	
 	la a0, bomba # printa a bomba
-	li a3, 0
 	mv s2, ra
 	call PRINT
 	mv ra, s2
@@ -230,7 +225,6 @@ UPDATE_BOMB:
 	beq t3, zero, EXPLODE_BOMB # se o timer chega a 0, a bomba explode
 	
 	la a0, bomba # printa a bomba de novo caso ela ainda exista
-	li a3, 0
 	mv s2, ra
 	call PRINT
 	mv ra, s2
@@ -240,8 +234,9 @@ UPDATE_BOMB:
 EXPLODE_BOMB:
 
 	la a0, tile
-	li a3, 0
 	mv s2, ra
+	call PRINT
+	xori a3, a3, 1
 	call PRINT
 	mv ra, s2
 	
