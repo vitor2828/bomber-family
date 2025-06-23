@@ -196,10 +196,13 @@ DROP_BOMB:
 	sh a2, 2(t1)
 	
 	la t0, BOMB_TIMER
-	li t1, 40000 # 120 é a quantidade de frames para a bomba explodir
-	sw t1, 0(t0) # guarda o inicio do timer da bomba
+	li a7, 30
+	ecall
+	sw a0, 0(t0)
 	
 	la a0, bomba # printa a bomba
+	lh a1, 0(t1)
+	lh a2, 2(t1)
 	mv s2, ra
 	call PRINT
 	mv ra, s2
@@ -213,16 +216,18 @@ UPDATE_BOMB:
 	beq s1, zero, UPDATE_BOMB_EXIT # se nao existe bomba, nao precisa atualizar bomba
 	
 	la t0, BOMB_POS # pega a posicao da bomba
+	
+	li a7, 30
+	ecall
+	
 	lh a1, 0(t0)
 	lh a2, 2(t0)
 	
-	la t0, BOMB_TIMER 
+	la t0, BOMB_TIMER
 	lw t3, 0(t0)
+	addi t3, t3, 2000
 	
-	addi t3, t3, -1 # a cada update_bomb, o timer desce 1
-	sw t3, 0(t0) # atualiza no .data
-	
-	beq t3, zero, EXPLODE_BOMB # se o timer chega a 0, a bomba explode
+	bgt a0, t3, EXPLODE_BOMB
 	
 	la a0, bomba # printa a bomba de novo caso ela ainda exista
 	mv s2, ra
@@ -232,6 +237,10 @@ UPDATE_BOMB:
 	j UPDATE_BOMB_EXIT
 	
 EXPLODE_BOMB:
+
+	la t0, BOMB_POS
+	lh a1, 0(t0)
+	lh a2, 2(t0)
 
 	la a0, tile
 	mv s2, ra
