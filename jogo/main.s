@@ -198,9 +198,9 @@ DROP_BOMB:
 	sh a2, 2(t1)
 	
 	la t0, BOMB_TIMER
-	li a7, 30
+	li a7, 30 # syscall para pegar o tempo
 	ecall
-	sw a0, 0(t0)
+	sw a0, 0(t0) # seta o time em que a bomba foi colocada
 	
 	la a0, bomba # printa a bomba
 	lh a1, 0(t1)
@@ -219,24 +219,24 @@ UPDATE_BOMB:
 	
 	la t0, BOMB_POS # pega a posicao da bomba
 	
-	li a7, 30
+	li a7, 30 # pega o tempo em que o loop ocorreu
 	ecall
 	
 	lh a1, 0(t0)
 	lh a2, 2(t0)
 	
-	la t0, BOMB_TIMER
+	la t0, BOMB_TIMER # pega o tempo inicial da bomba
 	lw t3, 0(t0)
-	addi t3, t3, 2000
+	addi t3, t3, 2000 # soma 2000 para pegar o tempo inicial da bomba + 2 segundos
 	
-	bgt a0, t3, EXPLODE_BOMB
+	bgt a0, t3, EXPLODE_BOMB # se o time da bomba + 2 segundos for menor que o time do loop, a bomba explode
 	
 	la a0, bomba # printa a bomba de novo caso ela ainda exista
 	mv s2, ra
 	call PRINT
 	mv ra, s2
 	
-	j UPDATE_BOMB_EXIT
+	j UPDATE_BOMB_EXIT # sai da label para voltar ao gameloop
 	
 EXPLODE_BOMB:
 
@@ -245,7 +245,7 @@ EXPLODE_BOMB:
 	lh a1, 0(t0)
 	lh a2, 2(t0)
 
-	la a0, tile
+	la a0, tile # printa a label de novo no lugar da bomba
 	mv s2, ra
 	mv a3, s0
 	call PRINT
@@ -255,41 +255,69 @@ EXPLODE_BOMB:
 	
 	sw zero, 0(t1)
 	
-	la t0, EXPLOSION_TIMER
+	la t0, EXPLOSION_TIMER # inicia o time que define o tempo de explosão
 	li a7, 30
 	ecall
 	sw a0, 0(t0)
 	
-	li s1, 0
+	 # devolve a bomba ao personagem
 
 UPDATE_EXPLOSION:
 
-	la t0, EXPLOSION_TIMER
+	la t0, EXPLOSION_TIMER 
 	lw t1, 0(t0)
-	beq t1, zero, UPDATE_EXPLOSION_EXIT
+	beq t1, zero, UPDATE_EXPLOSION_EXIT # se o timer não estiver definido, não há bomba. Portanto, apenas volta para o gameloop
 	
 	li a7, 30
 	ecall
 	addi t1, t1, 500
-	bge a0, t1, EXPLOSION_FINISHED
+	bge a0, t1, EXPLOSION_FINISHED # define o tempo de explosao na mesma lógica que a bomba
 	
 	la t1, BOMB_POS
 	lh a1, 0(t1)
 	lh a2, 2(t1)
 	
-	la a0, explosao
+# adicionar um loop para printar o sprite da explosao nos 4 tiles adjacentes
+
+	
+	la a0, explosao # printa a explosao
 	mv a3, s0
 	mv s2, ra
 	call PRINT
 	xori a3, a3, 1
 	call PRINT
+	
+	addi a1, a1, 16
+	call PRINT
+	xori a3, a3, 1
+	call PRINT
+	
+	addi a1, a1, -32 
+	call PRINT
+	xori a3, a3, 1
+	call PRINT
+	
+	la t1, BOMB_POS
+	
+	lh a1, 0(t1)
+	
+	addi a2, a2, 16
+	call PRINT
+	xori a3, a3, 1
+	call PRINT
+	
+	addi a2, a2, -32
+	call PRINT
+	xori a3, a3, 1
+	call PRINT
+	
 	mv ra, s2
 	
 	j UPDATE_EXPLOSION_EXIT
 	
 EXPLOSION_FINISHED:
 
-	la t0, BOMB_POS
+	la t0, BOMB_POS # printa a tile na explosao
 	la a0, tile
 	lh a1, 0(t0)
 	lh a2, 2(t0)
@@ -298,11 +326,39 @@ EXPLOSION_FINISHED:
 	call PRINT
 	xori a3, a3, 1
 	call PRINT
+	
+	addi a1, a1, 16
+	call PRINT
+	xori a3, a3, 1
+	call PRINT
+	
+	addi a1, a1, -32 
+	call PRINT
+	xori a3, a3, 1
+	call PRINT
+	
+	la t1, BOMB_POS
+	
+	lh a1, 0(t1)
+	
+	addi a2, a2, 16
+	call PRINT
+	xori a3, a3, 1
+	call PRINT
+	
+	addi a2, a2, -32
+	call PRINT
+	xori a3, a3, 1
+	call PRINT
+	
 	mv ra, s2
 	
+	li s1, 0
 	
-	la t0, EXPLOSION_TIMER
+	
+	la t0, EXPLOSION_TIMER # reseta o timer da explosao
 	sw zero, 0(t0)
+	
 	
 	
 UPDATE_EXPLOSION_EXIT:
