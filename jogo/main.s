@@ -1,10 +1,11 @@
 .data
 
 CHAR_POS:		.half 16,16 # posicao do personagem
-OLD_CHAR_POS: 		.half 16,16 # redesenha os tiles para o personagem sumir
 BOMB_POS:		.half 320, 320 # posicao da bomba
 BOMB_TIMER:		.word 0 # timer para começar a explosao da bomba
 EXPLOSION_TIMER:	.word 0 # timer para terminar a explosao da bomba
+BOMB_FLAG:			.byte 0 #flag para a bomba
+EXPLODE_BOMB_FLAG:	.byte 0
 
 .text
 
@@ -24,14 +25,19 @@ EXPLOSION_TIMER:	.word 0 # timer para terminar a explosao da bomba
 ## voltem ao padrão
 
 # s0 -> alterna entre os frames
-# s1 -> flag das bombas
+# s1 -> 
 # s2 -> salva o ra para funções internas
+# s3 -> forca das bombas
 
 SET_LEVEL_1: # prepara o mapa da primeira fase (versao beta)
 
-	li s1, 0
+
 	la a0, BOMB_TIMER
 	sw zero, 0(a0)
+	la a0, BOMB_FLAG
+	sb zero, 0(a0)
+	li s3, 3
+	
 	
 	la a0, mapa_beta
 	li a1, 0
@@ -40,6 +46,7 @@ SET_LEVEL_1: # prepara o mapa da primeira fase (versao beta)
 	call PRINT
 	li a3, 1
 	call PRINT
+
 	
 GAME_LOOP_1: # game loop da primeira fase
 
@@ -49,6 +56,13 @@ GAME_LOOP_1: # game loop da primeira fase
 	jal UPDATE_BOMB
 	jal UPDATE_EXPLOSION
 	
+	la a0, mapa_beta
+	li a1, 0
+	li a2, 0
+	li a3, 0
+	mv a3, s0
+	call PRINT
+
 	la t0, CHAR_POS
 	
 	la a0, char
@@ -57,21 +71,10 @@ GAME_LOOP_1: # game loop da primeira fase
 	li a3, 0
 	mv a3, s0
 	call PRINT
-	
-	
+
 	li t0, 0xFF200604
 	sw s0, 0(t0)
-	
-	la t0, OLD_CHAR_POS
-	
-	la a0, tile
-	lh a1, 0(t0)
-	lh a2, 2(t0)
-	
-	mv a3, s0
-	xori a3, a3, 1
-	call PRINT
-	
+		
 	j GAME_LOOP_1
 	
 KEYPOLL: #espera o usuario apertar algum botao e realiza uma acao
@@ -112,18 +115,15 @@ CHAR_LEFT:
 	
 CONFIRM_LEFT:
 	
-	la t1, OLD_CHAR_POS
-	lw t2, 0(t0)
-	sw t2, 0(t1)
-	
 	lh t1, 0(t0)
-	addi t1, t1, -16
+	addi t1, t1, -4
 	sh t1, 0(t0)
 	ret
 	
 CHAR_RIGHT:
 
 	la t0, CHAR_POS
+	li t5, 2
 	
 	mv t6, ra
 	jal CHECK_RIGHT
@@ -132,13 +132,8 @@ CHAR_RIGHT:
 	
 CONFIRM_RIGHT:
 
-	
-	la t1, OLD_CHAR_POS
-	lw t2, 0(t0)
-	sw t2, 0(t1)
-	
 	lh t1, 0(t0)
-	addi t1, t1, 16
+	addi t1, t1, 4
 	sh t1, 0(t0)
 	ret
 
@@ -153,12 +148,9 @@ CHAR_UP:
 	
 CONFIRM_UP:
 	
-	la t1, OLD_CHAR_POS
-	lw t2, 0(t0)
-	sw t2, 0(t1)
 	
 	lh t1, 2(t0)
-	addi t1, t1, -16
+	addi t1, t1, -4
 	sh t1, 2(t0)
 	ret
 	
@@ -173,25 +165,49 @@ CHAR_DOWN:
 	
 CONFIRM_DOWN:
 
-	la t1, OLD_CHAR_POS
-	lw t2, 0(t0)
-	sw t2, 0(t1)
 	
 	lh t1, 2(t0)
-	addi t1, t1, 16
+	addi t1, t1, 4
 	sh t1, 2(t0)
 	ret
 	
 DROP_BOMB:
 
-	li t0, 1 # 1 = ja existe bomba
-	beq s1, t0, DROP_BOMB_EXIT # se uma bomba ja estiver colocada, nao dropa a bomba
+	la t0, BOMB_FLAG
+	lb t1, 0(t0)
+	li t2, 1 # 1 = ja existe bomba
+	beq t1, t2, DROP_BOMB_EXIT # se uma bomba ja estiver colocada, nao dropa a bomba
 	
-	li s1, 1 # fala que uma bomba existe
+	sb t2, 0(t0) # fala que uma bomba existe
 	
 	la t0, CHAR_POS # pega o x e y do char 
 	lh a1, 0(t0)
 	lh a2, 2(t0)
+	li t1, 16
+
+	rem t2, a1, t1
+	li t1, 8
+
+	mv s2, ra
+
+	beq t2, zero, FIX_Y_BOMB
+	bge t2, t1, ADD_OFFSET_X
+	blt t2, t1, SUB_OFFSET_X
+
+FIX_Y_BOMB:
+
+	la t0, CHAR_POS
+	lh a2, 2(t0)
+	li t1, 16
+
+	rem t2, a2, t1
+	li t1, 8
+
+	beq t2, zero, CONTINUE_DROP_BOMB
+	bge t2, t1, ADD_OFFSET_Y
+	blt t2, t1, SUB_OFFSET_Y
+
+CONTINUE_DROP_BOMB:
 	
 	la t1, BOMB_POS # passa o x e y para a bomba
 	sh a1, 0(t1)
@@ -205,18 +221,43 @@ DROP_BOMB:
 	la a0, bomba # printa a bomba
 	lh a1, 0(t1)
 	lh a2, 2(t1)
-	mv s2, ra
 	call PRINT
 	mv ra, s2
 	
 DROP_BOMB_EXIT:
 	
 	ret
+
+ADD_OFFSET_X:
+
+	li t1, 16
+	sub t3, t1, t2
+	add a1, a1, t3
+	j FIX_Y_BOMB
+
+SUB_OFFSET_X:
+
+	sub a1, a1, t2
+	j FIX_Y_BOMB
+
+ADD_OFFSET_Y:
+
+	li t1, 16
+	sub t3, t1, t2
+	add a2, a2, t3
+	j CONTINUE_DROP_BOMB
+
+SUB_OFFSET_Y:
+
+	sub a2, a2, t2
+	j CONTINUE_DROP_BOMB
 	
 UPDATE_BOMB:
 
-	beq s1, zero, UPDATE_BOMB_EXIT # se nao existe bomba, nao precisa atualizar bomba
-	
+	la t1, BOMB_FLAG
+	lb t2, 0(t1)
+	beq t2, zero, UPDATE_BOMB_EXIT # se nao existe bomba, nao precisa atualizar bomba
+
 	la t0, BOMB_POS # pega a posicao da bomba
 	
 	li a7, 30 # pega o tempo em que o loop ocorreu
@@ -237,30 +278,34 @@ UPDATE_BOMB:
 	mv ra, s2
 	
 	j UPDATE_BOMB_EXIT # sai da label para voltar ao gameloop
-	
+
 EXPLODE_BOMB:
+
+	la t1, BOMB_FLAG
+	lb t2, 0(t0)
+	beq t2, zero, UPDATE_BOMB_EXIT
+
+	la t1, EXPLODE_BOMB_FLAG
+	lb t2, 0(t0)
+	li t3, 1
+	beq t2, t3, UPDATE_BOMB_EXIT
 
 	la t0, BOMB_POS
 	la t1, BOMB_TIMER
 	lh a1, 0(t0)
 	lh a2, 2(t0)
 
-	la a0, tile # printa a label de novo no lugar da bomba
-	mv s2, ra
-	mv a3, s0
-	call PRINT
-	xori a3, a3, 1
-	call PRINT
-	mv ra, s2
-	
-	sw zero, 0(t1)
-	
-	la t0, EXPLOSION_TIMER # inicia o time que define o tempo de explosão
+	la t0, EXPLOSION_TIMER
 	li a7, 30
 	ecall
 	sw a0, 0(t0)
-	
-	 # devolve a bomba ao personagem
+
+	la t0, BOMB_TIMER
+	sw zero, 0(t0)
+
+	la t0, EXPLODE_BOMB_FLAG
+	li t1, 1
+	sb t1, 0(t0)
 
 UPDATE_EXPLOSION:
 
@@ -272,94 +317,100 @@ UPDATE_EXPLOSION:
 	ecall
 	addi t1, t1, 500
 	bge a0, t1, EXPLOSION_FINISHED # define o tempo de explosao na mesma lógica que a bomba
-	
+
 	la t1, BOMB_POS
 	lh a1, 0(t1)
 	lh a2, 2(t1)
 	
 # adicionar um loop para printar o sprite da explosao nos 4 tiles adjacentes
 
-	
 	la a0, explosao # printa a explosao
-	mv a3, s0
 	mv s2, ra
+	mv a3, s0
 	call PRINT
 	xori a3, a3, 1
 	call PRINT
+	
+	li a4, 0
+	mv a3, s0
+	
+EXPLOSION_RIGHT:
 	
 	addi a1, a1, 16
 	call PRINT
 	xori a3, a3, 1
 	call PRINT
+	addi a4, a4, 1
+	bge a4, s3, END_EXPLOSION_RIGHT
+	j EXPLOSION_RIGHT
 	
-	addi a1, a1, -32 
+END_EXPLOSION_RIGHT:
+
+	li a4, 0
+	la t1, BOMB_POS
+	lh a1, 0(t1)
+	lh a2, 2(t1)
+
+EXPLOSION_LEFT:
+	
+	addi a1, a1, -16
 	call PRINT
 	xori a3, a3, 1
 	call PRINT
+	addi a4, a4, 1
+	bge a4, s3, END_EXPLOSION_LEFT
+	j EXPLOSION_LEFT
 	
+END_EXPLOSION_LEFT:
+	
+	li a4, 0
 	la t1, BOMB_POS
-	
 	lh a1, 0(t1)
+	lh a2, 2(t1)
+	
+EXPLOSION_UP:
+
+	addi a2, a2, -16
+	call PRINT
+	xori a3, a3, 1
+	call PRINT
+	addi a4, a4, 1
+	bge a4, s3, END_EXPLOSION_UP
+	j EXPLOSION_UP
+	
+END_EXPLOSION_UP:
+
+	li a4, 0
+	la t1, BOMB_POS
+	lh a1, 0(t1)
+	lh a2, 2(t1)
+	
+EXPLOSION_DOWN:
 	
 	addi a2, a2, 16
 	call PRINT
 	xori a3, a3, 1
 	call PRINT
+	addi a4, a4, 1
+	bge a4, s3, END_EXPLOSION_DOWN
+	j EXPLOSION_DOWN
 	
-	addi a2, a2, -32
-	call PRINT
-	xori a3, a3, 1
-	call PRINT
+END_EXPLOSION_DOWN:
 	
 	mv ra, s2
 	
 	j UPDATE_EXPLOSION_EXIT
 	
 EXPLOSION_FINISHED:
-
-	la t0, BOMB_POS # printa a tile na explosao
-	la a0, tile
-	lh a1, 0(t0)
-	lh a2, 2(t0)
-	mv a3, s0
-	mv s2, ra
-	call PRINT
-	xori a3, a3, 1
-	call PRINT
-	
-	addi a1, a1, 16
-	call PRINT
-	xori a3, a3, 1
-	call PRINT
-	
-	addi a1, a1, -32 
-	call PRINT
-	xori a3, a3, 1
-	call PRINT
-	
-	la t1, BOMB_POS
-	
-	lh a1, 0(t1)
-	
-	addi a2, a2, 16
-	call PRINT
-	xori a3, a3, 1
-	call PRINT
-	
-	addi a2, a2, -32
-	call PRINT
-	xori a3, a3, 1
-	call PRINT
-	
-	mv ra, s2
-	
-	li s1, 0
-	
 	
 	la t0, EXPLOSION_TIMER # reseta o timer da explosao
 	sw zero, 0(t0)
 	
-	
+	la t1, BOMB_FLAG
+	sb zero, 0(t1)
+
+	la t2, EXPLODE_BOMB_FLAG
+	sb zero, 0(t2)
 	
 UPDATE_EXPLOSION_EXIT:
 
@@ -419,6 +470,4 @@ PRINT_LINHA: #loop que printa tinha por linha até o fim da imagem
 .include "sprites/mapa_beta_tiled.data"
 .include "sprites/bomba.data"
 .include "sprites/explosao.data"
-	
-	
-	
+		
