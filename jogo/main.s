@@ -1,11 +1,12 @@
 .data
 
-CHAR_POS:		.half 16,16 # posicao do personagem
-BOMB_POS:		.half 320, 320 # posicao da bomba
+CHAR_POS:		.half 32,32 # posicao do personagem
+BOMB_POS:		.half 0, 0 # posicao da bomba
 BOMB_TIMER:		.word 0 # timer para começar a explosao da bomba
 EXPLOSION_TIMER:	.word 0 # timer para terminar a explosao da bomba
 BOMB_FLAG:			.byte 0 #flag para a bomba
 EXPLODE_BOMB_FLAG:	.byte 0
+
 
 .text
 
@@ -26,7 +27,7 @@ EXPLODE_BOMB_FLAG:	.byte 0
 
 # s0 -> alterna entre os frames
 # s1 -> 
-# s2 -> salva o ra para funções internas
+# s2/s7 -> salva o ra para funções internas
 # s3 -> forca das bombas
 
 SET_LEVEL_1: # prepara o mapa da primeira fase (versao beta)
@@ -37,15 +38,13 @@ SET_LEVEL_1: # prepara o mapa da primeira fase (versao beta)
 	la a0, BOMB_FLAG
 	sb zero, 0(a0)
 	li s3, 3
-	
-	
-	la a0, mapa_beta
+
 	li a1, 0
 	li a2, 0
 	li a3, 0
-	call PRINT
+	jal s7, PRINT_MAP
 	li a3, 1
-	call PRINT
+	jal s7, PRINT_MAP
 
 	
 GAME_LOOP_1: # game loop da primeira fase
@@ -56,19 +55,14 @@ GAME_LOOP_1: # game loop da primeira fase
 	jal UPDATE_BOMB
 	jal UPDATE_EXPLOSION
 	
-	la a0, mapa_beta
-	li a1, 0
-	li a2, 0
-	li a3, 0
 	mv a3, s0
-	call PRINT
+	jal s7, PRINT_MAP
 
 	la t0, CHAR_POS
 	
 	la a0, char
 	lh a1, 0(t0)
 	lh a2, 2(t0)
-	li a3, 0
 	mv a3, s0
 	call PRINT
 
@@ -116,14 +110,13 @@ CHAR_LEFT:
 CONFIRM_LEFT:
 	
 	lh t1, 0(t0)
-	addi t1, t1, -4
+	addi t1, t1, -8
 	sh t1, 0(t0)
 	ret
 	
 CHAR_RIGHT:
 
 	la t0, CHAR_POS
-	li t5, 2
 	
 	mv t6, ra
 	jal CHECK_RIGHT
@@ -133,7 +126,7 @@ CHAR_RIGHT:
 CONFIRM_RIGHT:
 
 	lh t1, 0(t0)
-	addi t1, t1, 4
+	addi t1, t1, 8
 	sh t1, 0(t0)
 	ret
 
@@ -150,7 +143,7 @@ CONFIRM_UP:
 	
 	
 	lh t1, 2(t0)
-	addi t1, t1, -4
+	addi t1, t1, -8
 	sh t1, 2(t0)
 	ret
 	
@@ -167,7 +160,7 @@ CONFIRM_DOWN:
 
 	
 	lh t1, 2(t0)
-	addi t1, t1, 4
+	addi t1, t1, 8
 	sh t1, 2(t0)
 	ret
 	
@@ -183,10 +176,27 @@ DROP_BOMB:
 	la t0, CHAR_POS # pega o x e y do char 
 	lh a1, 0(t0)
 	lh a2, 2(t0)
-	li t1, 16
 
+	la a0, mapa_beta_tiled
+
+	mv t1, a1
+	mv t2, a2
+	li t3, 32
+	li t4, 20
+
+	div t1, t1, t3
+	div t2, t2, t3
+	mul t2, t2, t4
+	add t1, t1, t2
+
+	addi a0, a0, 8
+	add a0, a0, t1
+
+	li t5, 2
+	sb t5, 0(a0)
+
+	li t1, 32
 	rem t2, a1, t1
-	li t1, 8
 
 	mv s2, ra
 
@@ -198,10 +208,10 @@ FIX_Y_BOMB:
 
 	la t0, CHAR_POS
 	lh a2, 2(t0)
-	li t1, 16
+	li t1, 32
 
 	rem t2, a2, t1
-	li t1, 8
+	li t1, 32
 
 	beq t2, zero, CONTINUE_DROP_BOMB
 	bge t2, t1, ADD_OFFSET_Y
@@ -230,7 +240,7 @@ DROP_BOMB_EXIT:
 
 ADD_OFFSET_X:
 
-	li t1, 16
+	li t1, 32
 	sub t3, t1, t2
 	add a1, a1, t3
 	j FIX_Y_BOMB
@@ -242,7 +252,7 @@ SUB_OFFSET_X:
 
 ADD_OFFSET_Y:
 
-	li t1, 16
+	li t1, 32
 	sub t3, t1, t2
 	add a2, a2, t3
 	j CONTINUE_DROP_BOMB
@@ -291,9 +301,26 @@ EXPLODE_BOMB:
 	beq t2, t3, UPDATE_BOMB_EXIT
 
 	la t0, BOMB_POS
-	la t1, BOMB_TIMER
 	lh a1, 0(t0)
 	lh a2, 2(t0)
+
+	la a0, mapa_beta_tiled
+
+	mv t1, a1
+	mv t2, a2
+	li t3, 32
+	li t4, 20
+
+	div t1, t1, t3
+	div t2, t2, t3
+	mul t2, t2, t4
+	add t1, t1, t2
+
+	addi a0, a0, 8
+	add a0, a0, t1
+
+	li t5, 1
+	sb t5 , 0(a0)
 
 	la t0, EXPLOSION_TIMER
 	li a7, 30
@@ -336,7 +363,8 @@ UPDATE_EXPLOSION:
 	
 EXPLOSION_RIGHT:
 	
-	addi a1, a1, 16
+	addi a1, a1, 32
+	jal s7, CHECK_EXPLOSION_RIGHT
 	call PRINT
 	xori a3, a3, 1
 	call PRINT
@@ -350,10 +378,12 @@ END_EXPLOSION_RIGHT:
 	la t1, BOMB_POS
 	lh a1, 0(t1)
 	lh a2, 2(t1)
+	mv a3, s0
 
 EXPLOSION_LEFT:
 	
-	addi a1, a1, -16
+	addi a1, a1, -32
+	jal s7, CHECK_EXPLOSION_LEFT
 	call PRINT
 	xori a3, a3, 1
 	call PRINT
@@ -367,10 +397,12 @@ END_EXPLOSION_LEFT:
 	la t1, BOMB_POS
 	lh a1, 0(t1)
 	lh a2, 2(t1)
+	mv a3, s0
 	
 EXPLOSION_UP:
 
-	addi a2, a2, -16
+	addi a2, a2, -32
+	jal s7, CHECK_EXPLOSION_UP
 	call PRINT
 	xori a3, a3, 1
 	call PRINT
@@ -384,10 +416,12 @@ END_EXPLOSION_UP:
 	la t1, BOMB_POS
 	lh a1, 0(t1)
 	lh a2, 2(t1)
+	mv a3, s0
 	
 EXPLOSION_DOWN:
 	
-	addi a2, a2, 16
+	addi a2, a2, 32
+	jal s7, CHECK_EXPLOSION_DOWN
 	call PRINT
 	xori a3, a3, 1
 	call PRINT
@@ -429,7 +463,7 @@ PRINT: # seta o endereco do bitmap e ajusta os registradores de imagem
 	slli t0, t0, 20
 	
 	add t0, t0, a1
-	li t1, 320
+	li  t1, 640
 	mul t1, t1, a2
 	add t0, t0, t1
 	
@@ -452,7 +486,7 @@ PRINT_LINHA: #loop que printa tinha por linha até o fim da imagem
 	addi t3, t3, 4
 	blt t3, t4, PRINT_LINHA
 	
-	addi t0, t0, 320
+	addi t0, t0, 640
 	sub t0, t0, t4
 	
 	mv t3, zero
@@ -460,12 +494,73 @@ PRINT_LINHA: #loop que printa tinha por linha até o fim da imagem
 	bgt t5, t2, PRINT_LINHA
 	
 	ret
+
+PRINT_MAP:
+    la s8, mapa_beta_tiled
+	addi s8, s8, 8  		# Endereço do mapa
+    li s5, 0                # Contador de linhas (Y)
+
+    # Configura dimensões
+    li t3, 20               # Largura do mapa (colunas)
+    li t4, 15               # Altura do mapa (linhas)
+
+PRINT_MAP_LINE:
+    li s4, 0                # Contador de colunas (X)
+
+PRINT_MAP_COLUMN:
+    # Carrega tile atual
+    lb t1, 0(s8)
+
+    # Calcula coordenadas (sem offsets)
+    slli a1, s4, 5          # X = coluna * 16 (equivalente a mul por 16)
+    slli a2, s5, 5         # Y = linha * 16
+
+
+    # Seleciona tile baseado no valor
+    beq t1, zero, PRINT_U_WALL    # Se tile == 0
+    li t2, 1
+    beq t1, t2, PRINT_TILE  # Se tile == 1
+
+	j PRINT_TILE
+
+PRINT_U_WALL:
+    la a0, u_wall_tile_32
+	slli a1, s4, 5
+	slli a2, s5, 5
+	call PRINT
+	j NEXT_TILE
 	
+
+PRINT_TILE:
+    la a0, tile_32
+	slli a1, s4, 5
+	slli a2, s5, 5
+	call PRINT
+	j NEXT_TILE
+
+NEXT_TILE:
+    # Avança para próximo tile
+	li t3, 20
+    addi s4, s4, 1          # Próxima coluna
+    addi s8, s8, 1          # Próximo byte do mapa
+    
+    blt s4, t3, PRINT_MAP_COLUMN  # Continua na mesma linha
+
+    # Próxima linha
+	li t4, 15
+    addi s5, s5, 1
+    blt s5, t4, PRINT_MAP_LINE
+
+	mv ra, s7
+
+    ret
+
 .data
 
 .include "sprites/mapa_beta.data"
-.include "sprites/char.s"
-.include "sprites/tile.data"
+.include "sprites/char.data"
+.include "sprites/tile_32.data"
+.include "sprites/u_wall_tile_32.data"
 .include "hitbox.s"
 .include "sprites/mapa_beta_tiled.data"
 .include "sprites/bomba.data"
