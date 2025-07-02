@@ -6,10 +6,23 @@ TEMPO_ATUAL: .word 0
 NUM: .word 18
 # lista de nota,duração,nota,duração,nota,duração,...
 NOTAS: 77,368,71,368,72,368,65,184,67,920,60,368,62,184,67,2760,60,184,62,184,62,368,65,368,67,368,72,184,62,920,72,368,62,184,67,1656
+CONTADOR_NOTAS: .word 0
 
 
 
 .text
+SET_MUSICA:
+	la s5,NUM		# define o endereço do número de notas
+	lw s6,0(s5)		# le o numero de notas
+	la s5,NOTAS		# define o endereço das notas
+
+ SET_TEMPO: li a7,30
+	   ecall 
+	   la s1,TEMPO_INICIAL
+	   sw a0,0(s1)
+	
+	j INIMIGO			# volta ao loop
+
 TEMPO: 	  li a7,30			# guarda o tempo atual
 	  ecall 
 	  
@@ -51,10 +64,18 @@ MUSICA:
 	li t5,2
 	beq t5,s11,INIMIGO_2
 
- SET_TEMPO: li a7,30
-	   ecall 
-	   la s1,TEMPO_INICIAL
-	   sw a0,0(s1)
-	
-	j INIMIGO			# volta ao loop
 
+
+FIM_MUSICA_:	
+	la t1,CONTADOR_NOTAS
+	li t0,0
+	sw t0,0(t1)
+	
+	la s5,NUM		# define o endereço do número de notas
+	lw s6,0(s5)		# le o numero de notas
+	la s5,NOTAS		# define o endereço das notas
+
+	li t5,2
+	beq t5,s11,INIMIGO_2
+		
+	j INIMIGO
