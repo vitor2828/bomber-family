@@ -2,10 +2,13 @@
 
 CHAR_POS:		.half 32,32 # posicao do personagem
 BOMB_POS:		.half 0, 0 # posicao da bomba
+ENEMY_1:		.half 1, 64, 128, 0 # flag se o inimigo está vivo // posicao do inimigo // orientacao do inimigo
+ENEMY_1_WALK_TIMER:	.word 0
 BOMB_TIMER:		.word 0 # timer para começar a explosao da bomba
 EXPLOSION_TIMER:	.word 0 # timer para terminar a explosao da bomba
 BOMB_FLAG:			.byte 0 #flag para a bomba
 EXPLODE_BOMB_FLAG:	.byte 0
+CHAR_LIVES:			.byte 3
 
 
 .text
@@ -32,12 +35,29 @@ EXPLODE_BOMB_FLAG:	.byte 0
 
 SET_LEVEL_1: # prepara o mapa da primeira fase (versao beta)
 
+	la a0, CHAR_LIVES
+	lb a1, 0(a0)
+	beq a1, zero, GAME_OVER
 
 	la a0, BOMB_TIMER
 	sw zero, 0(a0)
+
+	la a0, ENEMY_1
+	li a1, 1
+	sh a1, 0(a0)
+	li a1, 64
+	sh a1, 2(a0)
+	li a1, 128
+	sh a1, 4(a0)
+
+	la t0, ENEMY_1_WALK_TIMER
+	li a7, 30
+	ecall
+	sw a0, 0(t0)
+	
 	la a0, BOMB_FLAG
 	sb zero, 0(a0)
-	li s3, 3
+	li s3, 2
 
 	li a1, 0
 	li a2, 0
@@ -54,7 +74,8 @@ GAME_LOOP_1: # game loop da primeira fase
 	
 	jal UPDATE_BOMB
 	jal UPDATE_EXPLOSION
-	
+	jal UPDATE_ENEMY
+
 	mv a3, s0
 	jal s7, PRINT_MAP
 
@@ -69,6 +90,26 @@ GAME_LOOP_1: # game loop da primeira fase
 	li t0, 0xFF200604
 	sw s0, 0(t0)
 		
+
+#########LOOP DE DELAY##########
+#	li a7,30
+#	ecall
+#	mv t0,a0
+#	addi t0,t0,100
+	
+
+#LOOP_DELAY:
+
+#	li a7,30
+#	ecall
+#	mv t1,a0
+#	bgt t1,t0,FIM_DELAY
+#	j LOOP_DELAY
+
+#FIM_DELAY:
+
+##########FUM DO LOOP###########
+
 	j GAME_LOOP_1
 	
 KEYPOLL: #espera o usuario apertar algum botao e realiza uma acao
@@ -106,6 +147,7 @@ CHAR_LEFT:
 	jal CHECK_LEFT
 	mv ra, t6
 	ret
+
 	
 CONFIRM_LEFT:
 	
@@ -357,6 +399,9 @@ UPDATE_EXPLOSION:
 	call PRINT
 	xori a3, a3, 1
 	call PRINT
+	jal s7, CHECK_DAMAGE
+	la t0, ENEMY_1
+	jal s7, CHECK_ENEMY_DAMAGE
 	
 	li a4, 0
 	mv a3, s0
@@ -368,6 +413,9 @@ EXPLOSION_RIGHT:
 	call PRINT
 	xori a3, a3, 1
 	call PRINT
+	jal s7, CHECK_DAMAGE
+	la t0, ENEMY_1
+	jal s7, CHECK_ENEMY_DAMAGE
 	addi a4, a4, 1
 	bge a4, s3, END_EXPLOSION_RIGHT
 	j EXPLOSION_RIGHT
@@ -387,6 +435,9 @@ EXPLOSION_LEFT:
 	call PRINT
 	xori a3, a3, 1
 	call PRINT
+	jal s7, CHECK_DAMAGE
+	la t0, ENEMY_1
+	jal s7, CHECK_ENEMY_DAMAGE
 	addi a4, a4, 1
 	bge a4, s3, END_EXPLOSION_LEFT
 	j EXPLOSION_LEFT
@@ -406,6 +457,9 @@ EXPLOSION_UP:
 	call PRINT
 	xori a3, a3, 1
 	call PRINT
+	jal s7, CHECK_DAMAGE
+	la t0, ENEMY_1
+	jal s7, CHECK_ENEMY_DAMAGE
 	addi a4, a4, 1
 	bge a4, s3, END_EXPLOSION_UP
 	j EXPLOSION_UP
@@ -425,6 +479,9 @@ EXPLOSION_DOWN:
 	call PRINT
 	xori a3, a3, 1
 	call PRINT
+	jal s7, CHECK_DAMAGE
+	la t0, ENEMY_1
+	jal s7, CHECK_ENEMY_DAMAGE
 	addi a4, a4, 1
 	bge a4, s3, END_EXPLOSION_DOWN
 	j EXPLOSION_DOWN
@@ -445,7 +502,129 @@ EXPLOSION_FINISHED:
 
 	la t2, EXPLODE_BOMB_FLAG
 	sb zero, 0(t2)
-	
+
+UPDATE_ENEMY:
+
+	la a0, ENEMY_1
+	lh a1, 0(a0)
+	beq a1, zero, UPDATE_ENEMY_EXIT
+
+
+	la a0, ENEMY_1
+	lh a1, 2(a0)
+	lh a2, 4(a0)
+	la a0, enemy_beta
+	mv a3, s0
+	mv s2, ra
+	call PRINT
+	xori a3, a3, 1
+	call PRINT
+	mv ra, s2
+
+	mv s2, ra
+	la a0, ENEMY_1
+	lh t1, 2(a0)
+	lh t2, 4(a0)
+	call CHECK_DAMAGE_1
+	mv ra, s2
+
+	la a0, ENEMY_1_WALK_TIMER
+	lw t0, 0(a0)
+	addi t0, t0, 50
+	li a7, 30
+	ecall
+	bge a0, t0, CHECK_ENEMY_WALK
+
+	j UPDATE_ENEMY_EXIT
+
+CHECK_ENEMY_WALK:
+
+	la t0, ENEMY_1
+	lh t1, 2(t0)
+	lh t2, 4(t0)
+	lh t3, 6(t0)
+
+	beq t3, zero, CHECK_ENEMY_RIGHT
+
+RETURN_ENEMY_RIGHT:
+
+	li t4, 1
+	beq t3, t4, CHECK_ENEMY_UP
+
+RETURN_ENEMY_UP:
+
+	li t4, 2
+	beq t3, t4, CHECK_ENEMY_LEFT
+
+RETURN_ENEMY_LEFT:
+
+	li t4, 3
+	beq t3, t4, CHECK_ENEMY_DOWN
+
+	j UPDATE_ENEMY_EXIT
+
+
+WALK_ENEMY_RIGHT:
+
+	la t0, ENEMY_1
+	lh t1, 2(t0)
+	addi t1, t1, 1
+	sh t1, 2(t0)
+
+	li a7, 30
+	ecall
+
+	la t0, ENEMY_1_WALK_TIMER
+	sw a0, 0(t0)
+
+	j UPDATE_ENEMY_EXIT
+
+WALK_ENEMY_UP:
+
+	la t0, ENEMY_1
+	lh t2, 4(t0)
+	addi t2, t2, -1
+	sh t2, 4(t0)
+
+	li a7, 30
+	ecall
+
+	la t0, ENEMY_1_WALK_TIMER
+	sw a0, 0(t0)
+
+	j UPDATE_ENEMY_EXIT
+
+WALK_ENEMY_LEFT:
+
+	la t0, ENEMY_1
+	lh t1, 2(t0)
+	addi t1, t1, -1
+	sh t1, 2(t0)
+
+	li a7, 30
+	ecall
+
+	la t0, ENEMY_1_WALK_TIMER
+	sw a0, 0(t0)
+
+	j UPDATE_ENEMY_EXIT
+
+WALK_ENEMY_DOWN:
+
+	la t0, ENEMY_1
+	lh t2, 4(t0)
+	addi t2, t2, 1
+	sh t2, 4(t0)
+
+	li a7, 30
+	ecall
+
+	la t0, ENEMY_1_WALK_TIMER
+	sw a0, 0(t0)
+
+	j UPDATE_ENEMY_EXIT
+
+
 UPDATE_EXPLOSION_EXIT:
 
 	ret
@@ -453,9 +632,12 @@ UPDATE_EXPLOSION_EXIT:
 UPDATE_BOMB_EXIT:
 
 	ret
-	
-	
 
+UPDATE_ENEMY_EXIT:
+
+	ret
+	
+	
 PRINT: # seta o endereco do bitmap e ajusta os registradores de imagem
 
 	li t0, 0xFF0
@@ -520,6 +702,8 @@ PRINT_MAP_COLUMN:
     beq t1, zero, PRINT_U_WALL    # Se tile == 0
     li t2, 1
     beq t1, t2, PRINT_TILE  # Se tile == 1
+	li t2, 3
+	beq t1, t2, PRINT_B_WALL
 
 	j PRINT_TILE
 
@@ -533,6 +717,13 @@ PRINT_U_WALL:
 
 PRINT_TILE:
     la a0, tile_32
+	slli a1, s4, 5
+	slli a2, s5, 5
+	call PRINT
+	j NEXT_TILE
+
+PRINT_B_WALL:
+	la a0, b_wall
 	slli a1, s4, 5
 	slli a2, s5, 5
 	call PRINT
@@ -555,6 +746,11 @@ NEXT_TILE:
 
     ret
 
+GAME_OVER:
+
+	li a7, 10
+	ecall
+
 .data
 
 .include "sprites/mapa_beta.data"
@@ -562,7 +758,9 @@ NEXT_TILE:
 .include "sprites/tile_32.data"
 .include "sprites/u_wall_tile_32.data"
 .include "hitbox.s"
+.include "sprites/b_wall.s"
 .include "sprites/mapa_beta_tiled.data"
 .include "sprites/bomba.data"
 .include "sprites/explosao.data"
+.include "sprites/enemy_beta.data"
 		
