@@ -10,6 +10,7 @@ BOMB_FLAG:			.byte 0 #flag para a bomba
 BOMB_SPRITE_COUNTER:	.byte 0
 EXPLODE_BOMB_FLAG:	.byte 0
 CHAR_LIVES:			.byte 3
+PLAYER_SCORE:		.word 0
 
 
 .text
@@ -50,6 +51,9 @@ SET_LEVEL_1: # prepara o mapa da primeira fase (versao beta)
 	sh a1, 2(a0)
 	li a1, 128
 	sh a1, 4(a0)
+
+	la a0, BOMB_SPRITE_COUNTER
+	lb zero, 0(a0)
 
 	la t0, ENEMY_1_WALK_TIMER
 	li a7, 30
@@ -306,58 +310,51 @@ SUB_OFFSET_Y:
 	j CONTINUE_DROP_BOMB
 	
 UPDATE_BOMB:
+    # Verifica se existe bomba ativa
+    la t0, BOMB_FLAG
+    lb t1, 0(t0)
+    beq t1, zero, UPDATE_BOMB_EXIT
 
-	la t1, BOMB_FLAG
-	lb t2, 0(t1)
-	beq t2, zero, UPDATE_BOMB_EXIT # se nao existe bomba, nao precisa atualizar bomba
+    # Obtém tempo atual
+    li a7, 30
+    ecall
+    mv s1, a0          
 
-	la t0, BOMB_POS # pega a posicao da bomba
-	
-	li a7, 30 # pega o tempo em que o loop ocorreu
-	ecall
-	mv s1, a0
-	
-	lh a1, 0(t0)
-	lh a2, 2(t0)
-	
-	la t0, BOMB_TIMER # pega o tempo inicial da bomba
-	lw t3, 0(t0)
-	addi t3, t3, 2000 # soma 2000 para pegar o tempo inicial da bomba + 2 segundos
-	
-	bgt s1, t3, EXPLODE_BOMB # se o time da bomba + 2 segundos for menor que o time do loop, a bomba explode
+    # Verifica se deve explodir
+    la t0, BOMB_TIMER
+    lw t2, 0(t0)         # t2 = tempo de colocação
+    addi t3, t2, 2000    # t3 = tempo de explosão (2000ms)
+    bge s1, t3, EXPLODE_BOMB
 
-	lw t3, 0(t0)
-	la t0, BOMB_SPRITE_COUNTER
-	lb t4, 0(t0)
-	li t5, 125
-	mul t4, t4, t5
-	add t3, t3, t4
-	ecall
-	mv s1, a0
+    sub t4, s1, t2       # t4 = tempo decorrido
+    
+    li t5, 125           # 250ms por frame (8 frames em 2000ms)
+    div t4, t4, t5       # t4 = frame atual
+    
+    # Garante que está no range 0-7
+    li t5, 8
+	rem t4, t4, t5
+    j STORE_FRAME
+    
 
-	la a0, bomba
+STORE_FRAME:
+    la t0, BOMB_SPRITE_COUNTER
+    sb t4, 0(t0)
 
-	blt s1, t3, NO_BOMB_SPRITE_UPDATE
+    # Calcula endereço do sprite
+    la a0, bomba
+    lb t4, 0(t0)
+    li t5, 1032          # Tamanho de cada sprite
+    mul t5, t5, t4
+    add a0, a0, t5       # a0 = sprite atual
 
-	la t0, BOMB_SPRITE_COUNTER
-	lb t3, 0(t0)
-
-	li t4, 1032
-	mul t4, t4, t3
-	add a0, a0, t4
-	addi t3, t3, 1
-	li t4, 8
-	rem t3, t3, t4
-	sb t3, 0(t0)
-
-NO_BOMB_SPRITE_UPDATE:
-
-	la t0, BOMB_POS
-	lh a1, 0(t0)
-	lh a2, 2(t0)
-	mv s2, ra
-	call PRINT
-	mv ra, s2
+    # Desenha bomba
+    la t0, BOMB_POS
+    lh a1, 0(t0)
+    lh a2, 2(t0)
+    mv s2, ra
+    call PRINT
+    mv ra, s2
 	
 	j UPDATE_BOMB_EXIT # sai da label para voltar ao gameloop
 
@@ -406,8 +403,6 @@ EXPLODE_BOMB:
 	li t1, 1
 	sb t1, 0(t0)
 
-	la t0, BOMB_SPRITE_COUNTER
-	sb zero, 0(t0)
 
 UPDATE_EXPLOSION:
 
