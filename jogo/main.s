@@ -7,6 +7,7 @@ ENEMY_1_WALK_TIMER:	.word 0
 BOMB_TIMER:		.word 0 # timer para começar a explosao da bomba
 EXPLOSION_TIMER:	.word 0 # timer para terminar a explosao da bomba
 BOMB_FLAG:			.byte 0 #flag para a bomba
+BOMB_SPRITE_COUNTER:	.byte 0
 EXPLODE_BOMB_FLAG:	.byte 0
 CHAR_LIVES:			.byte 3
 
@@ -314,6 +315,7 @@ UPDATE_BOMB:
 	
 	li a7, 30 # pega o tempo em que o loop ocorreu
 	ecall
+	mv s1, a0
 	
 	lh a1, 0(t0)
 	lh a2, 2(t0)
@@ -322,9 +324,37 @@ UPDATE_BOMB:
 	lw t3, 0(t0)
 	addi t3, t3, 2000 # soma 2000 para pegar o tempo inicial da bomba + 2 segundos
 	
-	bgt a0, t3, EXPLODE_BOMB # se o time da bomba + 2 segundos for menor que o time do loop, a bomba explode
-	
-	la a0, bomba # printa a bomba de novo caso ela ainda exista
+	bgt s1, t3, EXPLODE_BOMB # se o time da bomba + 2 segundos for menor que o time do loop, a bomba explode
+
+	lw t3, 0(t0)
+	la t0, BOMB_SPRITE_COUNTER
+	lb t4, 0(t0)
+	li t5, 125
+	mul t4, t4, t5
+	add t3, t3, t4
+	ecall
+	mv s1, a0
+
+	la a0, bomba
+
+	blt s1, t3, NO_BOMB_SPRITE_UPDATE
+
+	la t0, BOMB_SPRITE_COUNTER
+	lb t3, 0(t0)
+
+	li t4, 1032
+	mul t4, t4, t3
+	add a0, a0, t4
+	addi t3, t3, 1
+	li t4, 8
+	rem t3, t3, t4
+	sb t3, 0(t0)
+
+NO_BOMB_SPRITE_UPDATE:
+
+	la t0, BOMB_POS
+	lh a1, 0(t0)
+	lh a2, 2(t0)
 	mv s2, ra
 	call PRINT
 	mv ra, s2
@@ -375,6 +405,9 @@ EXPLODE_BOMB:
 	la t0, EXPLODE_BOMB_FLAG
 	li t1, 1
 	sb t1, 0(t0)
+
+	la t0, BOMB_SPRITE_COUNTER
+	sb zero, 0(t0)
 
 UPDATE_EXPLOSION:
 
@@ -760,7 +793,7 @@ GAME_OVER:
 .include "hitbox.s"
 .include "sprites/b_wall.s"
 .include "sprites/mapa_beta_tiled.data"
-.include "sprites/bomba.data"
+.include "bomba.s"
 .include "sprites/explosao.data"
 .include "sprites/enemy_beta.data"
 		
