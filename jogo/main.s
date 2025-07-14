@@ -2,8 +2,8 @@
 
 CHAR_POS:		.half 32,32 # posicao do personagem
 BOMB_POS:		.half 0, 0 # posicao da bomba
-ENEMY_1:		.half 1, 64, 128, 0 # flag se o inimigo está vivo // posicao do inimigo // orientacao do inimigo
-ENEMY_1_WALK_TIMER:	.word 0
+ENEMY_1:		.word 1, 64, 128, 0, 0 # flag se o inimigo está vivo // posicao do inimigo // orientacao do inimigo
+ENEMY_2:		.word 1, 512, 224, 2, 0
 BOMB_TIMER:		.word 0 # timer para começar a explosao da bomba
 EXPLOSION_TIMER:	.word 0 # timer para terminar a explosao da bomba
 BOMB_FLAG:			.byte 0 #flag para a bomba
@@ -11,6 +11,8 @@ BOMB_SPRITE_COUNTER:	.byte 0
 EXPLODE_BOMB_FLAG:	.byte 0
 CHAR_LIVES:			.byte 3
 PLAYER_SCORE:		.word 0
+BOMB_POWER:			.byte 3
+WIN_FLAG:			.byte 0
 
 
 .text
@@ -46,23 +48,43 @@ SET_LEVEL_1: # prepara o mapa da primeira fase (versao beta)
 
 	la a0, ENEMY_1
 	li a1, 1
-	sh a1, 0(a0)
+	sw a1, 0(a0)
 	li a1, 64
-	sh a1, 2(a0)
+	sw a1, 4(a0)
 	li a1, 128
-	sh a1, 4(a0)
+	sw a1, 8(a0)
+
+	la a0, ENEMY_2
+	li a1, 1
+	sw a1, 0(a0)
+	li a1, 512
+	sw a1, 4(a0)
+	li a1, 224
+	sw a1, 8(a0)
+	li a1, 2
+	sw a1, 12(a0)
+
+	la a0, mapa_beta_tiled_c
+	la a1, mapa_beta_tiled
+	li a2, 75
+	li a3, 0
+	jal s7, RESTART_MAP
 
 	la a0, BOMB_SPRITE_COUNTER
 	lb zero, 0(a0)
 
-	la t0, ENEMY_1_WALK_TIMER
+	la a1, ENEMY_1
 	li a7, 30
 	ecall
-	sw a0, 0(t0)
+	sw a0, 16(a1)
+
+	la a1, ENEMY_2
+	li a7, 30
+	ecall
+	sw a0, 16(a1)
 	
 	la a0, BOMB_FLAG
 	sb zero, 0(a0)
-	li s3, 2
 
 	li a1, 0
 	li a2, 0
@@ -76,10 +98,25 @@ GAME_LOOP_1: # game loop da primeira fase
 
 	call KEYPOLL
 	xori s0, s0, 1
+
+	la a0, WIN_FLAG
+	li a1, 1
+	sb a1, 0(a0)
 	
 	jal UPDATE_BOMB
 	jal UPDATE_EXPLOSION
+	la s11, ENEMY_1
+	la s10, enemy_beta
 	jal UPDATE_ENEMY
+	la s11, ENEMY_2
+	la s10, enemy_beta
+	jal UPDATE_ENEMY
+	jal s7, MUSIC_LOOP
+
+	la a0, WIN_FLAG
+	lb a1, 0(a0)
+	li a0, 1
+	beq a1, a0, GAME_OVER
 
 	mv a3, s0
 	jal s7, PRINT_MAP
@@ -95,7 +132,6 @@ GAME_LOOP_1: # game loop da primeira fase
 	li t0, 0xFF200604
 	sw s0, 0(t0)
 		
-
 #########LOOP DE DELAY##########
 #	li a7,30
 #	ecall
@@ -430,6 +466,11 @@ UPDATE_EXPLOSION:
 	jal s7, CHECK_DAMAGE
 	la t0, ENEMY_1
 	jal s7, CHECK_ENEMY_DAMAGE
+	la t0, ENEMY_2
+	jal s7, CHECK_ENEMY_DAMAGE
+
+	la t0, BOMB_POWER
+	lb s3, 0(t0)
 	
 	li a4, 0
 	mv a3, s0
@@ -443,6 +484,8 @@ EXPLOSION_RIGHT:
 	call PRINT
 	jal s7, CHECK_DAMAGE
 	la t0, ENEMY_1
+	jal s7, CHECK_ENEMY_DAMAGE
+	la t0, ENEMY_2
 	jal s7, CHECK_ENEMY_DAMAGE
 	addi a4, a4, 1
 	bge a4, s3, END_EXPLOSION_RIGHT
@@ -466,6 +509,8 @@ EXPLOSION_LEFT:
 	jal s7, CHECK_DAMAGE
 	la t0, ENEMY_1
 	jal s7, CHECK_ENEMY_DAMAGE
+	la t0, ENEMY_2
+	jal s7, CHECK_ENEMY_DAMAGE
 	addi a4, a4, 1
 	bge a4, s3, END_EXPLOSION_LEFT
 	j EXPLOSION_LEFT
@@ -488,6 +533,8 @@ EXPLOSION_UP:
 	jal s7, CHECK_DAMAGE
 	la t0, ENEMY_1
 	jal s7, CHECK_ENEMY_DAMAGE
+	la t0, ENEMY_2
+	jal s7, CHECK_ENEMY_DAMAGE
 	addi a4, a4, 1
 	bge a4, s3, END_EXPLOSION_UP
 	j EXPLOSION_UP
@@ -509,6 +556,8 @@ EXPLOSION_DOWN:
 	call PRINT
 	jal s7, CHECK_DAMAGE
 	la t0, ENEMY_1
+	jal s7, CHECK_ENEMY_DAMAGE
+	la t0, ENEMY_2
 	jal s7, CHECK_ENEMY_DAMAGE
 	addi a4, a4, 1
 	bge a4, s3, END_EXPLOSION_DOWN
@@ -533,15 +582,17 @@ EXPLOSION_FINISHED:
 
 UPDATE_ENEMY:
 
-	la a0, ENEMY_1
-	lh a1, 0(a0)
+	mv t0, s11
+	lw a1, 0(t0)
 	beq a1, zero, UPDATE_ENEMY_EXIT
 
+	la a0, WIN_FLAG
+	sb zero, 0(a0)
 
-	la a0, ENEMY_1
-	lh a1, 2(a0)
-	lh a2, 4(a0)
-	la a0, enemy_beta
+
+	mv a0, s10
+	lw a1, 4(t0)
+	lw a2, 8(t0)
 	mv a3, s0
 	mv s2, ra
 	call PRINT
@@ -549,28 +600,29 @@ UPDATE_ENEMY:
 	call PRINT
 	mv ra, s2
 
+	mv t0, s11
+
 	mv s2, ra
-	la a0, ENEMY_1
-	lh t1, 2(a0)
-	lh t2, 4(a0)
+	lw t1, 4(t0)
+	lw t2, 8(t0)
 	call CHECK_DAMAGE_1
 	mv ra, s2
 
-	la a0, ENEMY_1_WALK_TIMER
-	lw t0, 0(a0)
-	addi t0, t0, 50
+	mv t0, s11
+	lw t1, 16(t0)
+	addi t1, t1, 50
 	li a7, 30
 	ecall
-	bge a0, t0, CHECK_ENEMY_WALK
+	bge a0, t1, CHECK_ENEMY_WALK
 
 	j UPDATE_ENEMY_EXIT
 
 CHECK_ENEMY_WALK:
 
-	la t0, ENEMY_1
-	lh t1, 2(t0)
-	lh t2, 4(t0)
-	lh t3, 6(t0)
+	mv t0, s11
+	lw t1, 4(t0)
+	lw t2, 8(t0)
+	lw t3, 12(t0)
 
 	beq t3, zero, CHECK_ENEMY_RIGHT
 
@@ -594,61 +646,57 @@ RETURN_ENEMY_LEFT:
 
 WALK_ENEMY_RIGHT:
 
-	la t0, ENEMY_1
-	lh t1, 2(t0)
+	mv t0, s11
+	lw t1, 4(t0)
 	addi t1, t1, 1
-	sh t1, 2(t0)
+	sw t1, 4(t0)
 
 	li a7, 30
 	ecall
 
-	la t0, ENEMY_1_WALK_TIMER
-	sw a0, 0(t0)
+	sw a0, 16(t0)
 
 	j UPDATE_ENEMY_EXIT
 
 WALK_ENEMY_UP:
 
-	la t0, ENEMY_1
-	lh t2, 4(t0)
+	mv t0, s11
+	lw t2, 8(t0)
 	addi t2, t2, -1
-	sh t2, 4(t0)
+	sw t2, 8(t0)
 
 	li a7, 30
 	ecall
 
-	la t0, ENEMY_1_WALK_TIMER
-	sw a0, 0(t0)
+	sw a0, 16(t0)
 
 	j UPDATE_ENEMY_EXIT
 
 WALK_ENEMY_LEFT:
 
-	la t0, ENEMY_1
-	lh t1, 2(t0)
+	mv t0, s11
+	lw t1, 4(t0)
 	addi t1, t1, -1
-	sh t1, 2(t0)
+	sw t1, 4(t0)
 
 	li a7, 30
 	ecall
 
-	la t0, ENEMY_1_WALK_TIMER
-	sw a0, 0(t0)
+	sw a0, 16(t0)
 
 	j UPDATE_ENEMY_EXIT
 
 WALK_ENEMY_DOWN:
 
-	la t0, ENEMY_1
-	lh t2, 4(t0)
+	mv t0, s11
+	lw t2, 8(t0)
 	addi t2, t2, 1
-	sh t2, 4(t0)
+	sw t2, 8(t0)
 
 	li a7, 30
 	ecall
 
-	la t0, ENEMY_1_WALK_TIMER
-	sw a0, 0(t0)
+	sw a0, 16(t0)
 
 	j UPDATE_ENEMY_EXIT
 
@@ -774,6 +822,17 @@ NEXT_TILE:
 
     ret
 
+RESTART_MAP:
+
+	lw t0, 0(a0)
+	sw t0, 0(a1)
+	addi a3, a3, 1
+	addi a0, a0, 4
+	addi a1, a1, 4
+	blt a3, a2, RESTART_MAP
+	mv ra, s7
+	ret
+
 GAME_OVER:
 
 	li a7, 10
@@ -787,7 +846,9 @@ GAME_OVER:
 .include "sprites/u_wall_tile_32.data"
 .include "hitbox.s"
 .include "sprites/b_wall.s"
+.include "musica.s"
 .include "sprites/mapa_beta_tiled.data"
+.include "sprites/mapa_beta_tiled_c.data"
 .include "bomba.s"
 .include "sprites/explosao.data"
 .include "sprites/enemy_beta.data"
